@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"hash"
 	"io"
 	"log"
@@ -44,16 +45,23 @@ func (module *HashModule) GetDescription() string {
 
 func (module *HashModule) LoadModule(args ...any) error {
 	conf := config.GetConfig()
-	module.loadHashes(conf.Hashes.MD5HashPath, &module.md5Hashes)
-	module.loadHashes(conf.Hashes.SHA256HashPath, &module.sha256Hashes)
-	return nil
+	md5_chan := make(chan error)
+	sha256_chan := make(chan error)
+	go func(c chan error) {
+		err := module.loadHashes(conf.Hashes.MD5HashPath, &module.md5Hashes)
+		c <- err
+	}(md5_chan)
+	go func(c chan error) {
+		err := module.loadHashes(conf.Hashes.SHA256HashPath, &module.sha256Hashes)
+		c <- err
+	}(sha256_chan)
+	return errors.Join(<-md5_chan, <-sha256_chan)
 }
 
-func (module *HashModule) loadHashes(hashpath string, hashStorage *[]string) {
+func (module *HashModule) loadHashes(hashpath string, hashStorage *[]string) error {
 	entries, err := os.ReadDir(hashpath)
 	if err != nil {
-		log.Println(err.Error())
-		return
+		return err
 	}
 
 	for _, entry := range entries {
@@ -62,7 +70,6 @@ func (module *HashModule) loadHashes(hashpath string, hashStorage *[]string) {
 		}
 		file, err := os.Open(hashpath + entry.Name())
 		if err != nil {
-			log.Println(err.Error())
 			continue
 		}
 		defer file.Close()
@@ -71,6 +78,7 @@ func (module *HashModule) loadHashes(hashpath string, hashStorage *[]string) {
 			*hashStorage = append(*hashStorage, scanner.Text())
 		}
 	}
+	return nil
 }
 
 func (module *HashModule) Check(path string) (bool, error) {
@@ -119,5 +127,5 @@ func (module *HashModule) calcHash(hash *hash.Hash, file *os.File) (HashValue, e
 
 func (module *HashModule) checkHash(hashValue HashValue, hashes []string) bool {
 	hashIndex := slices.Index(hashes, hashValue)
-	return hashIndex == -1
+	return hashIndex != -1
 }

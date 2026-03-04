@@ -1,6 +1,6 @@
 {
     "Hashes": {
-        "MD5HashPath": "/home/ivan/projects/Patrware/endpoint/md5/",
-        "SHA256HashPath": "/home/ivan/projects/Patrware/endpoint/sha256/"
+        "MD5HashPath": "/home/ivan/projects/Patrware/endpoint/hashes/Malware-Hash-Database/MD5/",
+        "SHA256HashPath": "/home/ivan/projects/Patrware/endpoint/hashes/Malware-Hash-Database/SHA256/"
     }
 }
