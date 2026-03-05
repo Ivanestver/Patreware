@@ -34,7 +34,7 @@ type IModule interface {
 	GetName() string
 	GetDescription() string
 	LoadModule(args ...any) error
-	Check(path string) (bool, error)
+	IsSafe(path string) (bool, error)
 }
 
 type BaseModule struct {

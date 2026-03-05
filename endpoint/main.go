@@ -6,9 +6,13 @@ import (
 	"patrware-endpoint/config"
 	"patrware-endpoint/modules"
 	_ "patrware-endpoint/modules/hash_module"
+	_ "patrware-endpoint/modules/signature_module"
+
+	"github.com/hillu/go-yara/v4"
 )
 
 func main() {
+	yara.NewCompiler()
 	if len(os.Args) < 2 {
 		panic("No file to check")
 	}
@@ -22,7 +26,7 @@ func main() {
 			log.Println(err.Error())
 			return
 		}
-		isInfected, err = currModule.Check(os.Args[1])
+		isInfected, err = currModule.IsSafe(os.Args[1])
 		if err != nil {
 			panic(err.Error())
 		} else if isInfected {

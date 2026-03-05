@@ -5,13 +5,18 @@ import (
 	"os"
 )
 
-type Hashes struct {
+type HashesConfig struct {
 	MD5HashPath    string
 	SHA256HashPath string
 }
 
+type SignaturesConfig struct {
+	Path string
+}
+
 type Config struct {
-	Hashes Hashes
+	Hashes     HashesConfig
+	Signatures SignaturesConfig
 }
 
 var config *Config

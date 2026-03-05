@@ -81,7 +81,7 @@ func (module *HashModule) loadHashes(hashpath string, hashStorage *[]string) err
 	return nil
 }
 
-func (module *HashModule) Check(path string) (bool, error) {
+func (module *HashModule) IsSafe(path string) (bool, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return false, err
