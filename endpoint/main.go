@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"patrware-endpoint/config"
 	"patrware-endpoint/modules"
 	_ "patrware-endpoint/modules/hash_module"
@@ -49,16 +48,29 @@ func (mods *Modules) GetModule(moduleName string) (modules.IModule, error) {
 var modulesStorage *Modules
 
 func main() {
+	listener := makeListener()
+	defer listener.Close()
+	configure()
+	mainLoop(listener)
+}
+
+func makeListener() net.Listener {
 	host := "localhost"
 	port := 50000
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
 		panic(err.Error())
 	}
-	defer listener.Close()
 	fmt.Printf("[INFO] Server started listening to the port %d\n", port)
+	return listener
+}
+
+func configure() {
 	config.InitializeConfig()
 	modulesStorage = NewModules()
+}
+
+func mainLoop(listener net.Listener) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -70,47 +82,31 @@ func main() {
 }
 
 func handleConnection(conn net.Conn) {
-	scanner := bufio.NewScanner(conn)
-	writer := bufio.NewWriter(conn)
 	defer conn.Close()
-	var req CheckRequest
-	resp := CheckResponse{}
-	if err := json.Unmarshal(scanner.Bytes(), &req); err != nil {
-		resp.Ok = false
-		resp.Error = err.Error()
-		sendResponce(&resp, writer)
+	req := getRequest(conn)
+	if req == nil {
 		return
 	}
-	isInfected := false
-	availableModules := modulesStorage.GetAvailableModules()
-	for _, moduleName := range availableModules {
-		currModule := modules.GetModuleByName(moduleName)
-		err := currModule.LoadModule()
-		if err != nil {
-			log.Println(err.Error())
-			return
-		}
-		isInfected, err = currModule.IsSafe(os.Args[1])
-		if err != nil {
-			log.Println(err.Error())
-		} else if isInfected {
-			break
-		} else {
-			continue
-		}
-	}
-	if isInfected {
-		resp.Ok = true
-		resp.Result = "INFECTED!!!"
-	} else {
-		resp.Ok = false
-		resp.Result = "NOT INFECTED!!!"
-	}
-
-	sendResponce(&resp, writer)
+	isInfected := checkIfInfected(req.Path)
+	resp := makeResponseIfInfected(isInfected)
+	sendResponce(resp, conn)
 }
 
-func sendResponce(resp *CheckResponse, writer *bufio.Writer) {
+func getRequest(conn net.Conn) *CheckRequest {
+	scanner := bufio.NewScanner(conn)
+	req := &CheckRequest{}
+	if err := json.Unmarshal(scanner.Bytes(), req); err != nil {
+		resp := CheckResponse{}
+		resp.Ok = false
+		resp.Error = err.Error()
+		sendResponce(&resp, conn)
+		return nil
+	}
+	return req
+}
+
+func sendResponce(resp *CheckResponse, conn net.Conn) {
+	writer := bufio.NewWriter(conn)
 	if bytes, err := json.Marshal(*resp); err == nil {
 		writer.Write(bytes)
 	} else {
@@ -120,6 +116,39 @@ func sendResponce(resp *CheckResponse, writer *bufio.Writer) {
 		})
 		writer.Write(bytes)
 	}
+}
+
+func checkIfInfected(path string) bool {
+	availableModules := modulesStorage.GetAvailableModules()
+	for _, moduleName := range availableModules {
+		currModule := modules.GetModuleByName(moduleName)
+		err := currModule.LoadModule()
+		if err != nil {
+			log.Println(err.Error())
+			continue
+		}
+		isInfected, err := currModule.IsSafe(path)
+		if err != nil {
+			log.Println(err.Error())
+		} else if isInfected {
+			return true
+		} else {
+			continue
+		}
+	}
+	return false
+}
+
+func makeResponseIfInfected(isInfected bool) *CheckResponse {
+	resp := &CheckResponse{}
+	if isInfected {
+		resp.Ok = true
+		resp.Result = "INFECTED!!!"
+	} else {
+		resp.Ok = false
+		resp.Result = "NOT INFECTED!!!"
+	}
+	return resp
 }
 
 type CheckRequest struct {
