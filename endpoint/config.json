@@ -1,7 +1,7 @@
 {
     "Hashes": {
-        "MD5HashPath": "/home/ivan/projects/Patrware/endpoint/hashes/Malware-Hash-Database/MD5/",
-        "SHA256HashPath": "/home/ivan/projects/Patrware/endpoint/hashes/Malware-Hash-Database/SHA256/"
+        "MD5HashPath": "/home/ivan/projects/Patrware/endpoint/hashes/MD5/",
+        "SHA256HashPath": "/home/ivan/projects/Patrware/endpoint/hashes/SHA256/"
     },
     "Signatures": {
         "Path": "/home/ivan/yara-rules/rules/"

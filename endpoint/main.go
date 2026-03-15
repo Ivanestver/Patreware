@@ -11,7 +11,10 @@ import (
 	"patrware-endpoint/modules"
 	_ "patrware-endpoint/modules/hash_module"
 	_ "patrware-endpoint/modules/signature_module"
+	pb "patrware/proto"
 	"slices"
+
+	"google.golang.org/grpc"
 )
 
 type Modules struct {
@@ -45,6 +48,21 @@ func (mods *Modules) GetModule(moduleName string) (modules.IModule, error) {
 	}
 }
 
+type ScannerServer struct {
+	pb.UnimplementedScannerServiceServer
+}
+
+func (s *ScannerServer) StartScan(req *pb.ScanRequest, stream pb.ScannerService_StartScanServer) error {
+	isInfected := checkIfInfected(req.Path)
+	stream.Send(&pb.ScanEvent{
+		CurrentFile:     req.Path,
+		ProgressPercent: 100,
+		VirusFound:      isInfected,
+		ThreatName:      "Some motherfucker",
+	})
+	return nil
+}
+
 var modulesStorage *Modules
 
 func main() {
@@ -71,14 +89,19 @@ func configure() {
 }
 
 func mainLoop(listener net.Listener) {
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			fmt.Println(err.Error())
-			continue
-		}
-		go handleConnection(conn)
+	scanner := grpc.NewServer()
+	pb.RegisterScannerServiceServer(scanner, &ScannerServer{})
+	if err := scanner.Serve(listener); err != nil {
+		fmt.Println(err.Error())
 	}
+	// for {
+	// 	conn, err := listener.Accept()
+	// 	if err != nil {
+	// 		fmt.Println(err.Error())
+	// 		continue
+	// 	}
+	// 	go handleConnection(conn)
+	// }
 }
 
 func handleConnection(conn net.Conn) {
