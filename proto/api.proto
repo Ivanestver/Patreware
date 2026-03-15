@@ -1,0 +1,29 @@
+syntax = "proto3";
+package patrware;
+option go_package = "./proto";
+
+service ScannerService {
+  // Стриминг: GUI отправляет путь, а сканер шлет поток событий о прогрессе
+  rpc StartScan (ScanRequest) returns (stream ScanEvent);
+  
+  // Обычный запрос: Получить текущий статус защиты
+  rpc GetStatus (Empty) returns (StatusResponse);
+}
+
+message ScanRequest {
+  string path = 1;
+}
+
+message ScanEvent {
+  string current_file = 1;
+  int32 progress_percent = 2;
+  bool virus_found = 3;
+  string threat_name = 4;
+}
+
+message StatusResponse {
+  bool is_active = 1;
+  string database_version = 2;
+}
+
+message Empty {}
