@@ -13,7 +13,7 @@
 
 <style scoped>
 #sidebar {
-    width: 10%;
+    width: 30%;
     height: 100%;
 }
 </style>
