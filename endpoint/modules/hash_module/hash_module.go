@@ -25,6 +25,7 @@ type HashModule struct {
 	modules.BaseModule
 	md5Hashes    []string
 	sha256Hashes []string
+	isLoaded     bool
 }
 
 func NewHashModule(logger *log.Logger) *HashModule {
@@ -32,6 +33,7 @@ func NewHashModule(logger *log.Logger) *HashModule {
 		BaseModule:   modules.NewBaseModule(logger),
 		md5Hashes:    make([]string, 0),
 		sha256Hashes: make([]string, 0),
+		isLoaded:     false,
 	}
 }
 
@@ -55,6 +57,7 @@ func (module *HashModule) LoadModule(args ...any) error {
 		err := module.loadHashes(conf.Hashes.SHA256HashPath, &module.sha256Hashes)
 		c <- err
 	}(sha256_chan)
+	module.isLoaded = true
 	return errors.Join(<-md5_chan, <-sha256_chan)
 }
 
@@ -81,22 +84,47 @@ func (module *HashModule) loadHashes(hashpath string, hashStorage *[]string) err
 	return nil
 }
 
-func (module *HashModule) IsSafe(path string) (bool, error) {
+func (module *HashModule) IsLoaded() bool {
+	return module.isLoaded
+}
+
+func (module *HashModule) IsSafe(path string, progressChan chan modules.CheckProgress, resultChan chan modules.CheckResult, errorChan chan error) {
 	file, err := os.Open(path)
+	res := modules.CheckResult{}
+	res.AnalysisType = module.getAnalysisType()
+	res.Path = path
+	res.Severity = modules.SEVERITY_HIGH
 	if err != nil {
-		return false, err
+		res.Result = modules.INFECTION_STATE_UNDEFINED
+		errorChan <- err
+		return
 	}
 	defer file.Close()
 
 	md5Result, _, err := module.checkMD5Hash(file)
 	if err != nil {
-		return false, nil
+		res.Result = modules.INFECTION_STATE_UNDEFINED
+		errorChan <- err
+		return
+	}
+	progressChan <- modules.CheckProgress{
+		PercentCompleted: 50,
 	}
 	sha256Result, _, err := module.checkSHA256Hash(file)
 	if err != nil {
-		return false, nil
+		res.Result = modules.INFECTION_STATE_UNDEFINED
+		errorChan <- err
+		return
 	}
-	return md5Result || sha256Result, nil
+	progressChan <- modules.CheckProgress{
+		PercentCompleted: 100,
+	}
+	if md5Result || sha256Result {
+		res.Result = modules.INFECTION_STATE_INFECTED
+	} else {
+		res.Result = modules.INFECTION_STATE_CLEAN
+	}
+	resultChan <- res
 }
 
 func (module *HashModule) checkMD5Hash(file *os.File) (bool, HashValue, error) {
@@ -128,4 +156,8 @@ func (module *HashModule) calcHash(hash *hash.Hash, file *os.File) (HashValue, e
 func (module *HashModule) checkHash(hashValue HashValue, hashes []string) bool {
 	hashIndex := slices.Index(hashes, hashValue)
 	return hashIndex != -1
+}
+
+func (module *HashModule) getAnalysisType() string {
+	return "Hash Analysis"
 }

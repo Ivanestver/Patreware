@@ -71,6 +71,7 @@ type ScanEvent struct {
 	ProgressPercent int32                  `protobuf:"varint,2,opt,name=progress_percent,json=progressPercent,proto3" json:"progress_percent,omitempty"`
 	VirusFound      bool                   `protobuf:"varint,3,opt,name=virus_found,json=virusFound,proto3" json:"virus_found,omitempty"`
 	ThreatName      string                 `protobuf:"bytes,4,opt,name=threat_name,json=threatName,proto3" json:"threat_name,omitempty"`
+	ErrorMsg        string                 `protobuf:"bytes,5,opt,name=error_msg,json=errorMsg,proto3" json:"error_msg,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -129,6 +130,13 @@ func (x *ScanEvent) GetVirusFound() bool {
 func (x *ScanEvent) GetThreatName() string {
 	if x != nil {
 		return x.ThreatName
+	}
+	return ""
+}
+
+func (x *ScanEvent) GetErrorMsg() string {
+	if x != nil {
+		return x.ErrorMsg
 	}
 	return ""
 }
@@ -227,14 +235,15 @@ const file_api_proto_rawDesc = "" +
 	"\n" +
 	"\tapi.proto\x12\bpatrware\"!\n" +
 	"\vScanRequest\x12\x12\n" +
-	"\x04path\x18\x01 \x01(\tR\x04path\"\x9b\x01\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\"\xb8\x01\n" +
 	"\tScanEvent\x12!\n" +
 	"\fcurrent_file\x18\x01 \x01(\tR\vcurrentFile\x12)\n" +
 	"\x10progress_percent\x18\x02 \x01(\x05R\x0fprogressPercent\x12\x1f\n" +
 	"\vvirus_found\x18\x03 \x01(\bR\n" +
 	"virusFound\x12\x1f\n" +
 	"\vthreat_name\x18\x04 \x01(\tR\n" +
-	"threatName\"X\n" +
+	"threatName\x12\x1b\n" +
+	"\terror_msg\x18\x05 \x01(\tR\berrorMsg\"X\n" +
 	"\x0eStatusResponse\x12\x1b\n" +
 	"\tis_active\x18\x01 \x01(\bR\bisActive\x12)\n" +
 	"\x10database_version\x18\x02 \x01(\tR\x0fdatabaseVersion\"\a\n" +

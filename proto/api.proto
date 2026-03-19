@@ -19,6 +19,7 @@ message ScanEvent {
   int32 progress_percent = 2;
   bool virus_found = 3;
   string threat_name = 4;
+  string error_msg = 5;
 }
 
 message StatusResponse {

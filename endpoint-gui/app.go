@@ -41,12 +41,23 @@ func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
 
-func (a *App) GetPathToScan() string {
+func (a *App) GetFilePathToScan() string {
 	options := runtime.OpenDialogOptions{}
 	options.DefaultDirectory, _ = os.UserHomeDir()
 	options.Title = "Выбрать файл для сканирования"
 	options.ShowHiddenFiles = true
 	if path, err := runtime.OpenFileDialog(a.ctx, options); err == nil {
+		return path
+	} else {
+		return ""
+	}
+}
+
+func (a *App) GetDirPathToScan() string {
+	options := runtime.OpenDialogOptions{}
+	options.DefaultDirectory, _ = os.UserHomeDir()
+	options.Title = "Выбрать директорию для сканирования"
+	if path, err := runtime.OpenDirectoryDialog(a.ctx, options); err == nil {
 		return path
 	} else {
 		return ""
@@ -70,7 +81,7 @@ func (a *App) StartScan(path string) {
 		for {
 			event, err := stream.Recv()
 			if err == io.EOF {
-				runtime.EventsEmit(a.ctx, "scan_complete", "Готово!")
+				runtime.EventsEmit(a.ctx, "scan_complete", event)
 				break
 			}
 			if err != nil {

@@ -5,6 +5,7 @@ export namespace main {
 	    progress_percent?: number;
 	    virus_found?: boolean;
 	    threat_name?: string;
+	    error_msg?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new UIScanEvent(source);
@@ -16,6 +17,7 @@ export namespace main {
 	        this.progress_percent = source["progress_percent"];
 	        this.virus_found = source["virus_found"];
 	        this.threat_name = source["threat_name"];
+	        this.error_msg = source["error_msg"];
 	    }
 	}
 

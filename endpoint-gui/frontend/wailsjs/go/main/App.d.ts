@@ -4,7 +4,9 @@ import {main} from '../models';
 
 export function GenerateScanEvent(arg1:main.UIScanEvent):Promise<void>;
 
-export function GetPathToScan():Promise<string>;
+export function GetDirPathToScan():Promise<string>;
+
+export function GetFilePathToScan():Promise<string>;
 
 export function Greet(arg1:string):Promise<string>;
 

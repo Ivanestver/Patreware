@@ -6,8 +6,12 @@ export function GenerateScanEvent(arg1) {
   return window['go']['main']['App']['GenerateScanEvent'](arg1);
 }
 
-export function GetPathToScan() {
-  return window['go']['main']['App']['GetPathToScan']();
+export function GetDirPathToScan() {
+  return window['go']['main']['App']['GetDirPathToScan']();
+}
+
+export function GetFilePathToScan() {
+  return window['go']['main']['App']['GetFilePathToScan']();
 }
 
 export function Greet(arg1) {

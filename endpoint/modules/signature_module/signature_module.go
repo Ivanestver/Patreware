@@ -15,13 +15,30 @@ func init() {
 	modules.RegisterModule(NewSignatureModule(log.Default()))
 }
 
+type _CustomScanCallback struct {
+	Matches        yara.MatchRules
+	ProgressChan   chan modules.CheckProgress
+	RulesCount     float64
+	currRulesCount float64
+}
+
+func (cb *_CustomScanCallback) RuleMatching(sc *yara.ScanContext, r *yara.Rule) (abort bool, err error) {
+	abort, err = cb.Matches.RuleMatching(sc, r)
+	cb.currRulesCount++
+	cb.ProgressChan <- modules.CheckProgress{
+		PercentCompleted: int(cb.currRulesCount / cb.RulesCount * 100.0),
+	}
+	return
+}
+
 type SignatureModule struct {
 	modules.BaseModule
-	Rules *yara.Rules
+	Rules    *yara.Rules
+	isLoaded bool
 }
 
 func NewSignatureModule(logger *log.Logger) *SignatureModule {
-	return &SignatureModule{}
+	return &SignatureModule{isLoaded: false}
 }
 
 func (module *SignatureModule) GetName() string {
@@ -52,6 +69,7 @@ func (module *SignatureModule) LoadModule(args ...any) error {
 	}); err != nil {
 		return err
 	}
+	module.isLoaded = true
 	if rules, err := compiler.GetRules(); err != nil {
 		return err
 	} else {
@@ -60,15 +78,37 @@ func (module *SignatureModule) LoadModule(args ...any) error {
 	}
 }
 
-func (module *SignatureModule) IsSafe(path string) (bool, error) {
-	var matches yara.MatchRules
+func (module *SignatureModule) IsLoaded() bool {
+	return module.isLoaded
+}
+
+func (module *SignatureModule) IsSafe(path string, progressChan chan modules.CheckProgress, resultChan chan modules.CheckResult, errorChan chan error) {
+	checkResult := modules.CheckResult{
+		AnalysisType: module.getAnalysisType(),
+		Path:         path,
+		Severity:     modules.SEVERITY_HIGH,
+		Result:       modules.INFECTION_STATE_UNDEFINED,
+	}
 	file, err := os.Open(path)
 	if err != nil {
-		return true, err
+		errorChan <- err
+		return
 	}
-	module.Rules.ScanFileDescriptor(file.Fd(), 0, 0, &matches)
-	if len(matches) == 0 {
-		return true, nil
+	callback := _CustomScanCallback{
+		ProgressChan: progressChan,
+		RulesCount:   float64(len(module.Rules.GetRules())),
 	}
-	return false, nil
+	ruleMatches := yara.MatchRules{}
+	module.Rules.ScanFileDescriptor(file.Fd(), 0, 0, &ruleMatches)
+	if len(callback.Matches) == 0 {
+		checkResult.Result = modules.INFECTION_STATE_CLEAN
+	} else {
+		checkResult.ThreatName = callback.Matches[0].Metas[0].Identifier
+		checkResult.Result = modules.INFECTION_STATE_INFECTED
+	}
+	resultChan <- checkResult
+}
+
+func (module *SignatureModule) getAnalysisType() string {
+	return "Signature Analysis"
 }

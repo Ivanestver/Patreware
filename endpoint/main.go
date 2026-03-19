@@ -1,18 +1,20 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"net"
+	"os"
+	"path/filepath"
 	"patrware-endpoint/config"
 	"patrware-endpoint/modules"
 	_ "patrware-endpoint/modules/hash_module"
 	_ "patrware-endpoint/modules/signature_module"
 	pb "patrware/proto"
 	"slices"
+	"sync"
 
 	"google.golang.org/grpc"
 )
@@ -25,6 +27,7 @@ type Modules struct {
 func NewModules() *Modules {
 	return &Modules{
 		availableModules: modules.GetAvailableModules(),
+		modulesList:      make(map[string]modules.IModule),
 	}
 }
 
@@ -53,13 +56,8 @@ type ScannerServer struct {
 }
 
 func (s *ScannerServer) StartScan(req *pb.ScanRequest, stream pb.ScannerService_StartScanServer) error {
-	isInfected := checkIfInfected(req.Path)
-	stream.Send(&pb.ScanEvent{
-		CurrentFile:     req.Path,
-		ProgressPercent: 100,
-		VirusFound:      isInfected,
-		ThreatName:      "Some motherfucker",
-	})
+	checker := NewChecker(stream)
+	checker.Check(req.Path)
 	return nil
 }
 
@@ -86,6 +84,15 @@ func makeListener() net.Listener {
 func configure() {
 	config.InitializeConfig()
 	modulesStorage = NewModules()
+	for _, moduleName := range modulesStorage.GetAvailableModules() {
+		if module, err := modulesStorage.GetModule(moduleName); err == nil || !module.IsLoaded() {
+			if err = module.LoadModule(); err != nil {
+				fmt.Println(err.Error())
+			}
+		} else {
+			fmt.Println(err.Error())
+		}
+	}
 }
 
 func mainLoop(listener net.Listener) {
@@ -94,92 +101,120 @@ func mainLoop(listener net.Listener) {
 	if err := scanner.Serve(listener); err != nil {
 		fmt.Println(err.Error())
 	}
-	// for {
-	// 	conn, err := listener.Accept()
-	// 	if err != nil {
-	// 		fmt.Println(err.Error())
-	// 		continue
-	// 	}
-	// 	go handleConnection(conn)
-	// }
 }
 
-func handleConnection(conn net.Conn) {
-	defer conn.Close()
-	req := getRequest(conn)
-	if req == nil {
+type Checker struct {
+	stream pb.ScannerService_StartScanServer
+}
+
+func NewChecker(stream pb.ScannerService_StartScanServer) *Checker {
+	return &Checker{
+		stream: stream,
+	}
+}
+
+func (checker *Checker) Check(path string) {
+	availableModules := modulesStorage.GetAvailableModules()
+	files, err := checker.defineSetOfFilesToCheck(path)
+	if err != nil {
+		checker.stream.Send(&pb.ScanEvent{
+			ErrorMsg: err.Error(),
+		})
 		return
 	}
-	isInfected := checkIfInfected(req.Path)
-	resp := makeResponseIfInfected(isInfected)
-	sendResponce(resp, conn)
-}
-
-func getRequest(conn net.Conn) *CheckRequest {
-	scanner := bufio.NewScanner(conn)
-	req := &CheckRequest{}
-	if err := json.Unmarshal(scanner.Bytes(), req); err != nil {
-		resp := CheckResponse{}
-		resp.Ok = false
-		resp.Error = err.Error()
-		sendResponce(&resp, conn)
-		return nil
-	}
-	return req
-}
-
-func sendResponce(resp *CheckResponse, conn net.Conn) {
-	writer := bufio.NewWriter(conn)
-	if bytes, err := json.Marshal(*resp); err == nil {
-		writer.Write(bytes)
-	} else {
-		bytes, _ := json.Marshal(CheckResponse{
-			Ok:    false,
-			Error: "Internal Server Error",
-		})
-		writer.Write(bytes)
+	for _, file := range files {
+		checker.checkFile(file, availableModules)
 	}
 }
 
-func checkIfInfected(path string) bool {
-	availableModules := modulesStorage.GetAvailableModules()
+func (checker *Checker) checkFile(filepath string, availableModules []string) {
+	progressChan := make(chan modules.CheckProgress)
+	resultChan := make(chan modules.CheckResult)
+	errorChan := make(chan error)
+	var wg sync.WaitGroup
 	for _, moduleName := range availableModules {
 		currModule := modules.GetModuleByName(moduleName)
-		err := currModule.LoadModule()
-		if err != nil {
-			log.Println(err.Error())
-			continue
+		if !currModule.IsLoaded() {
+			if err := currModule.LoadModule(); err != nil {
+				log.Println(err.Error())
+				continue
+			}
 		}
-		isInfected, err := currModule.IsSafe(path)
-		if err != nil {
-			log.Println(err.Error())
-		} else if isInfected {
-			return true
-		} else {
-			continue
+		wg.Go(func() {
+			currModule.IsSafe(filepath, progressChan, resultChan, errorChan)
+		})
+	}
+
+	go func() {
+		wg.Wait()
+		close(progressChan)
+		close(resultChan)
+		close(errorChan)
+	}()
+
+	isRunning := true
+	results := make([]modules.CheckResult, 0)
+	for isRunning {
+		select {
+		case <-progressChan:
+			// contribution := (float64(process.PercentCompleted) * 0.01) *
+			// 	(1.0 / float64(len(availableModules))) * 100
+			// currPercent += contribution
+			// checker.stream.Send(&pb.ScanEvent{
+			// 	ProgressPercent: int32(currPercent),
+			// })
+		case result, ok := <-resultChan:
+			if ok {
+				results = append(results, result)
+			} else {
+				isInfected := false
+				for _, r := range results {
+					isInfected = isInfected || r.Result == modules.INFECTION_STATE_INFECTED
+				}
+				checker.stream.Send(&pb.ScanEvent{
+					CurrentFile:     filepath,
+					ProgressPercent: 100,
+					VirusFound:      isInfected,
+					ThreatName:      "Some threat",
+					ErrorMsg:        "",
+				})
+				isRunning = false
+			}
+		case err, ok := <-errorChan:
+			if ok {
+				checker.stream.Send(&pb.ScanEvent{
+					CurrentFile:     filepath,
+					ProgressPercent: 100,
+					VirusFound:      false,
+					ThreatName:      "Unknown",
+					ErrorMsg:        err.Error(),
+				})
+				isRunning = false
+			} else {
+
+			}
 		}
 	}
-	return false
 }
 
-func makeResponseIfInfected(isInfected bool) *CheckResponse {
-	resp := &CheckResponse{}
-	if isInfected {
-		resp.Ok = true
-		resp.Result = "INFECTED!!!"
+func (checker *Checker) defineSetOfFilesToCheck(root string) ([]string, error) {
+	if fileInfo, err := os.Stat(root); err != nil {
+		return nil, err
 	} else {
-		resp.Ok = false
-		resp.Result = "NOT INFECTED!!!"
+		if fileInfo.Mode().IsRegular() {
+			return []string{root}, nil
+		} else {
+			files := make([]string, 0)
+			if err = filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+				if info.IsDir() {
+					return nil
+				}
+				files = append(files, path)
+				return nil
+			}); err != nil {
+				return nil, err
+			}
+			return files, nil
+		}
 	}
-	return resp
-}
-
-type CheckRequest struct {
-	Path string `json:"path"`
-}
-
-type CheckResponse struct {
-	Ok     bool   `json:"ok"`
-	Result string `json:"result"`
-	Error  string `json:"error"`
 }
