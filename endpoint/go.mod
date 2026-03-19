@@ -2,16 +2,18 @@ module patrware-endpoint
 
 go 1.26.1
 
-require github.com/hillu/go-yara/v4 v4.3.4
+require (
+	github.com/hillu/go-yara/v4 v4.3.4
+	google.golang.org/grpc v1.79.2
+	patrware/proto v0.0.0-00010101000000-000000000000
+)
 
 require (
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/grpc v1.79.2 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
-	patrware/proto v0.0.0-00010101000000-000000000000 // indirect
 )
 
 replace patrware/proto => ../proto
