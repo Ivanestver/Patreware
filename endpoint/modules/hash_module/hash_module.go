@@ -10,8 +10,8 @@ import (
 	"io"
 	"log"
 	"os"
-	"patrware-endpoint/config"
-	"patrware-endpoint/modules"
+	"patrware/endpoint/config"
+	"patrware/endpoint/modules"
 	"slices"
 )
 

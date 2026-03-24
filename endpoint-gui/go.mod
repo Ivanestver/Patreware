@@ -5,7 +5,6 @@ go 1.26.1
 require (
 	github.com/wailsapp/wails/v2 v2.11.0
 	google.golang.org/grpc v1.79.2
-	patrware/proto v0.0.0-00010101000000-000000000000
 )
 
 require (
@@ -41,5 +40,3 @@ require (
 )
 
 // replace github.com/wailsapp/wails/v2 v2.11.0 => /home/ivan/projects/Patrware
-
-replace patrware/proto => ../proto

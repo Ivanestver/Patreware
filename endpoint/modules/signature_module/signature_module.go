@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"patrware-endpoint/config"
-	"patrware-endpoint/modules"
+	"patrware/endpoint/config"
+	"patrware/endpoint/modules"
 
 	yara "github.com/hillu/go-yara/v4"
 )

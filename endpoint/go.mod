@@ -1,11 +1,10 @@
-module patrware-endpoint
+module patrware/endpoint
 
 go 1.26.1
 
 require (
 	github.com/hillu/go-yara/v4 v4.3.4
 	google.golang.org/grpc v1.79.2
-	patrware/proto v0.0.0-00010101000000-000000000000
 )
 
 require (
@@ -15,5 +14,3 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
-
-replace patrware/proto => ../proto
