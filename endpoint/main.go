@@ -13,9 +13,12 @@ import (
 	_ "patrware/endpoint/modules/hash_module"
 	_ "patrware/endpoint/modules/signature_module"
 	pb "patrware/proto"
+	"patrware/structs"
 	"slices"
 	"sync"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"google.golang.org/grpc"
 )
 
@@ -64,6 +67,7 @@ func (s *ScannerServer) StartScan(req *pb.ScanRequest, stream pb.ScannerService_
 var modulesStorage *Modules
 
 func main() {
+	makeConnectionWithAdminServer()
 	listener := makeListener()
 	defer listener.Close()
 	configure()
@@ -216,5 +220,82 @@ func (checker *Checker) defineSetOfFilesToCheck(root string) ([]string, error) {
 			}
 			return files, nil
 		}
+	}
+}
+
+func makeConnectionWithAdminServer() {
+	serverURL := "ws://localhost:60000/ws"
+
+	for {
+		log.Println("Пытаюсь подключиться к серверу...")
+
+		// 1. Устанавливаем соединение
+		conn, resp, err := websocket.DefaultDialer.Dial(serverURL, nil)
+		if err != nil {
+			log.Printf("Ошибка подключения: %v. Повтор через 5 секунд...", err)
+			if resp != nil {
+				log.Printf("resp: %v", resp)
+			}
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		hostname, err := os.Hostname()
+		if err != nil {
+			log.Printf("Ошибка при получении имени компьютера: %v", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		info := structs.EndpointInfo{
+			Name:          hostname,
+			SecurityState: structs.SECURITY_STATE_CLEAN,
+		}
+		if err = conn.WriteJSON(&info); err != nil {
+			log.Printf("Ошибка при отправке регистрационного сообщения, %v", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		log.Println("Подключено!")
+
+		// 2. Обрабатываем соединение
+		handleConnection(conn)
+
+		// Если handleConnection завершился, значит связь прервалась
+		log.Println("Связь потеряна.")
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func handleConnection(conn *websocket.Conn) {
+	defer conn.Close()
+
+	// Горутина для чтения ответов от сервера
+	// go func() {
+	// 	for {
+	// 		var msg protocol.Message
+	// 		err := conn.ReadJSON(&msg)
+	// 		if err != nil {
+	// 			log.Println("Ошибка чтения:", err)
+	// 			return
+	// 		}
+	// 		log.Printf("Получено от сервера: %s", msg.Content)
+	// 	}
+	// }()
+
+	// Основной цикл отправки данных (например, статус агента раз в 10 сек)
+	for {
+		// msg := protocol.Message{
+		// 	From:    "Agent-007",
+		// 	Content: "Я жив, всё ок!",
+		// }
+
+		// err := conn.WriteJSON(msg)
+		// if err != nil {
+		// 	log.Println("Ошибка отправки:", err)
+		// 	return // Выходим, чтобы сработал реконнект в main
+		// }
+
+		time.Sleep(10 * time.Second)
 	}
 }
