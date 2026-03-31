@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"patrware/server/hub"
+	"patrware/server/web/handlers"
 )
 
 func main() {
-	hubInstance := hub.NewHub()
-	http.HandleFunc("/ws", hubInstance.ServeConnection)
+	hub.InitHub()
+	handlers.SetupHandlers()
 
 	if err := http.ListenAndServe(":60000", nil); err != nil {
 		fmt.Println(err.Error())

@@ -30,8 +30,10 @@ type Hub struct {
 	upgrader  websocket.Upgrader
 }
 
-func NewHub() Hub {
-	return Hub{
+var _HubInstance *Hub
+
+func InitHub() {
+	_HubInstance = &Hub{
 		endpoints: make(map[structs.UUID]*_Connection),
 		mx:        sync.Mutex{},
 		upgrader: websocket.Upgrader{
@@ -42,9 +44,14 @@ func NewHub() Hub {
 			},
 		},
 	}
+	_HubInstance.setupHandlers()
 }
 
-func (hub *Hub) ServeConnection(writer http.ResponseWriter, req *http.Request) {
+func (hub *Hub) setupHandlers() {
+	http.HandleFunc("/ws", hub.serveConnection)
+}
+
+func (hub *Hub) serveConnection(writer http.ResponseWriter, req *http.Request) {
 	conn, err := hub.upgrader.Upgrade(writer, req, nil)
 	if err != nil {
 		panic("Not implemented")
@@ -54,11 +61,31 @@ func (hub *Hub) ServeConnection(writer http.ResponseWriter, req *http.Request) {
 
 	endPoint := models.MakeEndpoint(endpointInfo)
 	hubconn := newConnection(conn, endPoint)
-	defer func() {
-		hub.deleteConnection(hubconn.Id)
-		conn.Close()
-	}()
+	hub.addConnection(hubconn)
+	// defer func() {
+	// 	hub.deleteConnection(hubconn.Id)
+	// 	conn.Close()
+	// }()
 	fmt.Printf("Got a new endpoint:, %v", req.Host)
+}
+
+func GetAllEndpoints() []models.Endpoint {
+	endpoints := make([]models.Endpoint, len(_HubInstance.endpoints))
+	i := 0
+	for _, conn := range _HubInstance.endpoints {
+		endpoints[i] = conn.Endpoint
+		i++
+	}
+	return endpoints
+}
+
+func GetConnectionAssisiatedWithEndpoint(endpointId structs.UUID) (*_Connection, error) {
+	for _, conn := range _HubInstance.endpoints {
+		if conn.Endpoint.GetID().Equals(endpointId) {
+			return conn, nil
+		}
+	}
+	return nil, fmt.Errorf("no connection assiciated with the endpoint: ", endpointId)
 }
 
 func (hub *Hub) addConnection(conn *_Connection) {
