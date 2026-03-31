@@ -11,6 +11,7 @@ func main() {
 	hub.InitHub()
 	handlers.SetupHandlers()
 
+	defer hub.ClearUp()
 	if err := http.ListenAndServe(":60000", nil); err != nil {
 		fmt.Println(err.Error())
 	}
