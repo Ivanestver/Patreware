@@ -1,3 +1,6 @@
+/*
+Package hub is blah-blah-blah
+*/
 package hub
 
 import (

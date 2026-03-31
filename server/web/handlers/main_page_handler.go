@@ -1,3 +1,6 @@
+/*
+Package handlers is blah-blah-blah
+*/
 package handlers
 
 import (
@@ -16,8 +19,8 @@ type _EndpointViewModel struct {
 }
 
 func mainPageHandler(writer http.ResponseWriter, req *http.Request) {
-	mainHtmlTemplatePath := getTemplatesPath("main.html")
-	mainHtmlTemplate, err := template.ParseFiles(mainHtmlTemplatePath)
+	mainHTMLTemplatePath := getTemplatesPath("main.html")
+	mainHTMLTemplate, err := template.ParseFiles(mainHTMLTemplatePath)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -25,14 +28,14 @@ func mainPageHandler(writer http.ResponseWriter, req *http.Request) {
 	endpoints := hub.GetAllEndpoints()
 	data := make([]_EndpointViewModel, len(endpoints))
 	for idx, endpoint := range endpoints {
-		conn, err := hub.GetConnectionAssisiatedWithEndpoint(endpoint.GetID())
+		conn, err := hub.GetConnectionAssociatedWithEndpoint(endpoint.GetID())
 		if err != nil {
 			log.Println(err.Error())
 			continue
 		}
 		data[idx].IP = conn.SocketConn.LocalAddr().String()
 	}
-	if err = mainHtmlTemplate.Execute(writer, data); err != nil {
+	if err = mainHTMLTemplate.Execute(writer, data); err != nil {
 		log.Printf("%v\n", err)
 	}
 }

@@ -1,3 +1,6 @@
+/*
+Package models is blah-blah-blah
+*/
 package models
 
 import (
