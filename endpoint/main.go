@@ -248,7 +248,7 @@ func makeConnectionWithAdminServer() {
 		}
 		info := structs.EndpointInfo{
 			Name:          hostname,
-			SecurityState: structs.SECURITY_STATE_CLEAN,
+			SecurityState: structs.SecurityStateClean,
 		}
 		if err = conn.WriteJSON(&info); err != nil {
 			log.Printf("Ошибка при отправке регистрационного сообщения, %v", err)

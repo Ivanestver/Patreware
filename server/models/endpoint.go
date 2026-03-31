@@ -17,7 +17,7 @@ func MakeEndpoint(endpointInfo structs.EndpointInfo) Endpoint {
 	return Endpoint{
 		EndpointInfo:    endpointInfo,
 		id:              structs.GenerateUUID(),
-		connectionState: structs.CONNECTION_STATE_CONNECTED,
+		connectionState: structs.ConnectionStateConnected,
 	}
 }
 
@@ -26,5 +26,5 @@ func (endpoint *Endpoint) GetID() structs.UUID {
 }
 
 func (endpoint *Endpoint) IsConnected() bool {
-	return endpoint.connectionState == structs.CONNECTION_STATE_CONNECTED
+	return endpoint.connectionState == structs.ConnectionStateConnected
 }
